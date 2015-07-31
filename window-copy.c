@@ -1235,8 +1235,13 @@ void
 window_copy_redraw_screen(struct window_pane *wp)
 {
 	struct window_copy_mode_data	*data = wp->modedata;
+	struct screen			*s = &data->screen;
 
 	window_copy_redraw_lines(wp, 0, screen_size_y(&data->screen));
+
+        if (data->oy == 0 && !s->sel.flag && s->sel.lineflag == LINE_SEL_NONE) {
+		window_pane_reset_mode(wp);
+        }
 }
 
 void
@@ -1849,6 +1854,7 @@ window_copy_cursor_down(struct window_pane *wp, int scroll_only)
 	struct window_copy_mode_data	*data = wp->modedata;
 	struct screen			*s = &data->screen;
 	u_int				 ox, oy, px, py;
+        u_int 				 scrolled_past_bottom = 0;
 
 	oy = screen_hsize(data->backing) + data->cy - data->oy;
 	ox = window_copy_find_length(wp, oy);
@@ -1862,6 +1868,8 @@ window_copy_cursor_down(struct window_pane *wp, int scroll_only)
 
 	data->cx = data->lastcx;
 	if (scroll_only || data->cy == screen_size_y(s) - 1) {
+                scrolled_past_bottom = data->oy == 0;
+
 		window_copy_scroll_up(wp, 1);
 		if (scroll_only && data->cy > 0)
 			window_copy_redraw_lines(wp, data->cy - 1, 2);
@@ -1883,6 +1891,10 @@ window_copy_cursor_down(struct window_pane *wp, int scroll_only)
 		window_copy_cursor_end_of_line(wp);
 	else if (s->sel.lineflag == LINE_SEL_RIGHT_LEFT)
 		window_copy_cursor_start_of_line(wp);
+
+        if (scrolled_past_bottom && !s->sel.flag && s->sel.lineflag == LINE_SEL_NONE) {
+                window_pane_reset_mode(wp);
+        }
 }
 
 void
